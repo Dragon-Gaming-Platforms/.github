@@ -1,5 +1,3 @@
-<h1 align="center">Dragon Gaming Platforms</h1>
-
 <div align="center">
   <img src="https://raw.githubusercontent.com/Dragon-Gaming-Platforms/Web-OS/main/os/assets/images/dragon-login.png" height="425" />
 </div>
