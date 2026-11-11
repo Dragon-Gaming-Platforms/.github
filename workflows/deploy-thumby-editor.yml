@@ -1,0 +1,42 @@
+name: Deploy Thumby Color Editor to GitHub Pages
+
+on:
+  push:
+    branches: [ "arena/802732db-github" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: arena/802732db-github
+
+      - name: Set up Python for headless emulator testing
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies (if any)
+        run: |
+          pip install --quiet --upgrade pip
+
+      - name: Build Thumby Color Editor Game
+        run: |
+          # The 'game' is the editor itself in .github/thumby_color_editor/
+          # We copy it to the gh-pages branch root
+          mkdir -p ./gh-pages-build
+          cp -r .github/thumby_color_editor/* ./gh-pages-build/
+          echo "Built editor for Thumby Color (128x128) and GitHub Pages"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./gh-pages-build
+          publish_branch: gh-pages
+          force_orphan: true
+          # Note: Arena environment handles the branch arena/802732db-github
+          # This workflow will push the build to the gh-pages branch of Dragon-Gaming-Platforms
