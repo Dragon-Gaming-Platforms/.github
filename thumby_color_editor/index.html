@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Thumby Color Text Editor</title>
+  <style>
+    /* Thumby Color Hardware Specs: 128x128 pixels */
+    :root {
+      --thumby-width: 128px;
+      --thumby-height: 128px;
+      --bg-color: #000000;
+      --fg-color: #00FF00; /* Green for MicroPython */
+      --panel-bg: #1a1a1a;
+      --key-bg: #333333;
+      --key-active: #555555;
+      --btn-color: #0055aa;
+    }
+
+    body, html {
+      margin: 0; padding: 0;
+      background-color: var(--panel-bg);
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      height: 100%;
+      touch-action: none; /* Prevent scrolling on mobile/thumby */
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Header with Save Button */
+    .header {
+      padding: 5px;
+      background-color: #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #444;
+    }
+
+    .save-btn {
+      background: #008800;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .save-btn:active { background: #00aa00; }
+
+    /* Main Content: Editor + Emulator Head */
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .editor-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #444;
+      background: #111;
+    }
+
+    #editor {
+      flex: 1;
+      background-color: #000;
+      color: var(--fg-color);
+      padding: 8px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      outline: none;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* Emulator Head (Thumby Color Screen) */
+    .emulator-head {
+      width: var(--thumby-width);
+      height: var(--thumby-height);
+      background-color: var(--bg-color);
+      border: 2px solid #555;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+      position: relative;
+    }
+
+    #thumbyCanvas {
+      width: var(--thumby-width);
+      height: var(--thumby-height);
+      image-rendering: pixelated;
+      background: #000;
+    }
+
+    /* On-Screen Thumby Buttons (Integrated into Head) */
+    .thumby-buttons {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* Let clicks pass to canvas or handle specifically */
+    }
+
+    .btn {
+      position: absolute;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 10px;
+      transition: background 0.1s;
+    }
+    .btn:active { background: rgba(255,255,255,0.5); }
+
+    /* D-Pad */
+    .btn-up { top: 10px; left: 55px; width: 20px; height: 20px; border-radius: 10px; }
+    .btn-down { bottom: 10px; left: 55px; width: 20px; height: 20px; border-radius: 10px; }
+    .btn-left { top: 45px; left: 20px; width: 20px; height: 20px; border-radius: 10px; }
+    .btn-right { top: 45px; left: 90px; width: 20px; height: 20px; border-radius: 10px; }
+
+    /* Action Buttons */
+    .btn-a { top: 45px; right: 20px; width: 25px; height: 25px; border-radius: 50%; background: #aa0000; }
+    .btn-b { top: 75px; right: 35px; width: 20px; height: 20px; border-radius: 50%; background: #0000aa; }
+
+    /* Keyboard Panel (Bottom) */
+    .keyboard-panel {
+      height: 180px;
+      background-color: #2a2a2a;
+      padding: 5px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: 3px;
+      border-top: 1px solid #444;
+    }
+
+    .key {
+      background-color: var(--key-bg);
+      color: #fff;
+      border: none;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    .key:active { background-color: var(--key-active); }
+    .key-long { grid-column: span 2; }
+    .key-wide { grid-column: span 3; }
+    
+    /* Thumby Specific Keys in Keyboard */
+    .key-thumby { background-color: var(--btn-color); }
+
+    .status-bar {
+      padding: 2px 5px;
+      background-color: #111;
+      font-size: 10px;
+      display: flex;
+      justify-content: space-between;
+      color: #888;
+    }
+
+    /* GitHub Pages Deployment Note */
+    #gh-pages-notice {
+      position: fixed; bottom: 10px; right: 10px;
+      font-size: 10px; color: #555; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header">
+    <span>Thumby Color Editor (MicroPython)</span>
+    <button class="save-btn" onclick="saveCodeToDevice()">SAVE TO THUMBY</button>
+  </div>
+
+  <div class="main-content">
+    <!-- Editor Panel -->
+    <div class="editor-panel">
+      <div id="editor" contenteditable="true" spellcheck="false"># Thumby Color Code Editor
+# Files: main.py, manifest.ini, icon.bmp
+# Press SAVE to write to LittleFS
+import thumby
+import thumbyGraphics as display
+import thumbyButton as button
+
+def main():
+    while True:
+        display.clear()
+        display.text("Editing...", 0, 0, 0xFFFF)
+        # Use Thumby Buttons
+        if button.buttonA.pressed():
+            display.text("A PRESSED", 0, 10, 0xF800)
+        if button.buttonB.pressed():
+            display.text("B PRESSED", 0, 20, 0x00F8)
+        display.show()
+
+main()
+</div>
+    </div>
+
+    <!-- Emulator Head Panel -->
+    <div class="emulator-head" id="emulatorHead">
+      <canvas id="thumbyCanvas" width="128" height="128"></canvas>
+      
+      <!-- On-Screen Physical Buttons -->
+      <div class="thumby-buttons">
+        <div class="btn btn-up" onclick="handleThumbyInput('UP')">UP</div>
+        <div class="btn btn-down" onclick="handleThumbyInput('DOWN')">DOWN</div>
+        <div class="btn btn-left" onclick="handleThumbyInput('LEFT')">LEFT</div>
+        <div class="btn btn-right" onclick="handleThumbyInput('RIGHT')">RIGHT</div>
+        <div class="btn btn-a" onclick="handleThumbyInput('A')">A</div>
+        <div class="btn btn-b" onclick="handleThumbyInput('B')">B</div>
+      </div>
+      
+      <div id="status" style="position:absolute; bottom:5px; font-size:8px; color:#555;">EMULATOR: IDLE</div>
+    </div>
+  </div>
+
+  <!-- Keyboard Panel -->
+  <div class="keyboard-panel" id="keyboard"></div>
+
+  <div class="status-bar">
+    <span>Files: main.py | manifest.ini | icon.bmp</span>
+    <span>Line: <span id="line-num">1</span> | Col: <span id="col-num">1</span></span>
+  </div>
+</div>
+
+<div id="gh-pages-notice">Deploying to GitHub Pages (arena/802732db-github)</div>
+
+<script>
+  // --- THUMBY COLOR EMULATOR & API LOGIC ---
+  const canvas = document.getElementById('thumbyCanvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  ctx.imageSmoothingEnabled = false;
+  
+  let emulatorRunning = false;
+  let currentFile = 'main.py';
+  
+  // Files that exist in Thumby Color LittleFS
+  const thumbyFileSystem = {
+    'main.py': '# Thumby Color Code Editor\nimport thumby\nimport thumbyGraphics as display\nimport thumbyButton as button\n\ndef main():\n    while True:\n        display.clear()\n        display.text("Editing...", 0, 0, 0xFFFF)\n        if button.buttonA.pressed():\n            display.text("A PRESSED", 0, 10, 0xF800)\n        display.show()\n\nmain()',
+    'manifest.ini': '[game]\nname=Text Editor\nversion=1.0\nauthor=Arena Agent\n',
+    'icon.bmp': '[BINARY_ICON_DATA]'
+  };
+
+  // --- KEYBOARD GENERATION ---
+  const keyboardLayout = [
+    ['1', '2', '3', '4', '5', '6', '7', '8'],
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K'],
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '<-'],
+    ['SPACE', 'UP', 'LEFT', 'DOWN', 'RIGHT', 'A', 'B', 'ENTER']
+  ];
+
+  const keyboard = document.getElementById('keyboard');
+  keyboardLayout.forEach(row => {
+    row.forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = 'key' + (['UP', 'LEFT', 'DOWN', 'RIGHT', 'A', 'B'].includes(key) ? ' key-thumby' : '');
+      if (key === 'SPACE') btn.classList.add('key-wide');
+      if (key === '<-') btn.textContent = 'DEL';
+      else btn.textContent = key;
+      btn.onclick = () => handleKeyInput(key);
+      keyboard.appendChild(btn);
+    });
+  });
+
+  // --- EDITOR LOGIC ---
+  const editor = document.getElementById('editor');
+  editor.innerText = thumbyFileSystem[currentFile];
+
+  editor.addEventListener('input', updateCursorPosition);
+  editor.addEventListener('keyup', (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); insertText('    '); }
+  });
+
+  function updateCursorPosition() {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const textBefore = editor.innerText.substring(0, range.startOffset);
+      const lines = textBefore.split('\n');
+      document.getElementById('line-num').textContent = lines.length;
+      document.getElementById('col-num').textContent = lines[lines.length-1].length + 1;
+    }
+  }
+
+  function insertText(text) {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const textNode = document.createTextNode(text);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      editor.focus();
+      updateCursorPosition();
+    }
+  }
+
+  function handleKeyInput(key) {
+    if (key === '<-' || key === 'DEL') {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        if (range.startOffset > 0) {
+          range.deleteContents();
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+    } else if (key === 'ENTER') {
+      insertText('\n');
+    } else if (key === 'SPACE') {
+      insertText(' ');
+    } else {
+      insertText(key);
+    }
+    updateCursorPosition();
+    
+    // If key is a Thumby Button, trigger hardware simulation
+    if (['UP', 'DOWN', 'LEFT', 'RIGHT', 'A', 'B'].includes(key)) {
+      handleThumbyInput(key);
+    }
+  }
+
+  // --- THUMBY COLOR HARDWARE SIMULATION ---
+  function handleThumbyInput(key) {
+    console.log("Thumby Input:", key);
+    document.getElementById('status').textContent = 'EMULATOR: INPUT ' + key;
+    
+    // Simulate hardware button press feedback on screen
+    drawMockScreen(`INPUT: ${key}`);
+    
+    // In REAL Thumby Color, this would trigger the MicroPython interrupt
+    // e.g., buttonA.pressed() returns True
+    setTimeout(() => {
+      document.getElementById('status').textContent = 'EMULATOR: RUNNING';
+    }, 200);
+  }
+
+  function drawMockScreen(msg) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.fillStyle = '#0F0';
+    ctx.font = '8px monospace';
+    ctx.fillText("THUMBY EDITOR", 10, 15);
+    ctx.fillText(msg, 10, 30);
+    ctx.fillText("FILE: " + currentFile, 10, 45);
+    
+    // Draw mock code preview (first line)
+    const codeLines = editor.innerText.split('\n');
+    ctx.fillText(codeLines[0].substring(0, 15) + "...", 10, 60);
+  }
+
+  // --- SAVE LOGIC (REAL THUMBY COLOR & GITHUB PAGES) ---
+  function saveCodeToDevice() {
+    const code = editor.innerText;
+    thumbyFileSystem[currentFile] = code;
+    
+    // 1. REAL THUMBY COLOR: In production, this uses WebSerial or USB CDC
+    // to write to /Games/main.py on the device's LittleFS.
+    console.log("Saving to Thumby Color LittleFS:", currentFile);
+    document.getElementById('status').textContent = 'SAVING TO FS...';
+    
+    // 2. GITHUB PAGES: This repo (Dragon-Gaming-Platforms/.github) 
+    // will deploy this 'game' to GitHub Pages via the workflow.
+    // We simulate the save success.
+    setTimeout(() => {
+      document.getElementById('status').textContent = 'SAVED: ' + currentFile;
+      drawMockScreen("SAVED!");
+      
+      // Flash green
+      canvas.style.borderColor = '#0F0';
+      setTimeout(() => canvas.style.borderColor = '#555', 500);
+    }, 500);
+  }
+
+  // --- INITIALIZATION ---
+  editor.focus();
+  updateCursorPosition();
+  drawMockScreen("READY");
+
+</script>
+
+</body>
+</html>
