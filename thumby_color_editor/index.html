@@ -188,7 +188,11 @@
 <div class="app-container">
   <div class="header">
     <span>Thumby Color Editor (MicroPython)</span>
-    <button class="save-btn" onclick="saveCodeToDevice()">SAVE TO THUMBY</button>
+    <div style="display: flex; gap: 5px; align-items: center;">
+      <input type="text" id="filePathInput" placeholder="/Games/main.py" style="padding: 2px 5px; font-size: 10px; width: 120px; background: #000; color: #0f0; border: 1px solid #444;">
+      <button class="save-btn" style="font-size: 10px; padding: 2px 5px;" onclick="loadFile()">LOAD</button>
+      <button class="save-btn" onclick="saveCodeToDevice()">SAVE TO THUMBY</button>
+    </div>
   </div>
 
   <div class="main-content">
@@ -252,13 +256,13 @@ main()
   ctx.imageSmoothingEnabled = false;
   
   let emulatorRunning = false;
-  let currentFile = 'main.py';
+  let currentFile = '/Games/main.py';
   
-  // Files that exist in Thumby Color LittleFS
+  // Files that exist in Thumby Color LittleFS (absolute paths)
   const thumbyFileSystem = {
-    'main.py': '# Thumby Color Code Editor\nimport thumby\nimport thumbyGraphics as display\nimport thumbyButton as button\n\ndef main():\n    while True:\n        display.clear()\n        display.text("Editing...", 0, 0, 0xFFFF)\n        if button.buttonA.pressed():\n            display.text("A PRESSED", 0, 10, 0xF800)\n        display.show()\n\nmain()',
-    'manifest.ini': '[game]\nname=Text Editor\nversion=1.0\nauthor=Arena Agent\n',
-    'icon.bmp': '[BINARY_ICON_DATA]'
+    '/Games/main.py': '# Thumby Color Code Editor\nimport thumby\nimport thumbyGraphics as display\nimport thumbyButton as button\n\ndef main():\n    while True:\n        display.clear()\n        display.text("Editing...", 0, 0, 0xFFFF)\n        if button.buttonA.pressed():\n            display.text("A PRESSED", 0, 10, 0xF800)\n        display.show()\n\nmain()',
+    '/Games/manifest.ini': '[game]\nname=Text Editor\nversion=1.0\nauthor=Arena Agent\n',
+    '/Games/icon.bmp': '[BINARY_ICON_DATA]'
   };
 
   // --- KEYBOARD GENERATION ---
@@ -396,6 +400,35 @@ main()
       canvas.style.borderColor = '#0F0';
       setTimeout(() => canvas.style.borderColor = '#555', 500);
     }, 500);
+  }
+
+  // --- LOAD FILE BY ABSOLUTE PATH (NEW REQUIREMENT) ---
+  // Reads any file that exists on the Thumby Color LittleFS
+  // (e.g. /Games/main.py, /Games/manifest.ini, /Games/icon.bmp)
+  function loadFile() {
+    const input = document.getElementById('filePathInput');
+    const path = input.value.trim();
+    const status = document.getElementById('status');
+    if (!path) {
+      status.textContent = 'ENTER A PATH';
+      return;
+    }
+    if (!path.startsWith('/')) {
+      status.textContent = 'USE ABSOLUTE PATH (e.g. /Games/main.py)';
+      return;
+    }
+    if (thumbyFileSystem[path]) {
+      currentFile = path;
+      editor.innerText = thumbyFileSystem[currentFile];
+      updateCursorPosition();
+      status.textContent = 'LOADED: ' + path;
+      drawMockScreen('LOADED: ' + path);
+      console.log('Loaded file from Thumby Color LittleFS:', path);
+    } else {
+      status.textContent = 'NOT FOUND: ' + path;
+      drawMockScreen('ERR: NOT FOUND');
+      console.warn('File not found in Thumby Color LittleFS:', path);
+    }
   }
 
   // --- INITIALIZATION ---
