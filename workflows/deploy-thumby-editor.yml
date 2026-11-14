@@ -2,7 +2,7 @@ name: Deploy Thumby Color Editor to GitHub Pages
 
 on:
   push:
-    branches: [ "arena/802732db-github" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
