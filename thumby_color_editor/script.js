@@ -13,9 +13,9 @@ class ThumbyColorEditor {
         this.canvas = document.getElementById('thumbyCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.files = {
-            'main.py': '',
-            'manifest.ini': '',
-            'icon.bmp': ''
+            '/Games/main.py': '',
+            '/Games/manifest.ini': '',
+            '/Games/icon.bmp': ''
         };
         this.init();
     }
@@ -31,9 +31,9 @@ class ThumbyColorEditor {
     loadFiles() {
         // In a real Thumby Color, we'd fetch from /Games/ via USB
         // For GitHub Pages deployment, these are baked into the JS
-        this.files['main.py'] = this.editor.innerText;
-        this.files['manifest.ini'] = '[game]\nname=Text Editor\nversion=1.0\n';
-        this.files['icon.bmp'] = '[BINARY]';
+        this.files['/Games/main.py'] = this.editor.innerText;
+        this.files['/Games/manifest.ini'] = '[game]\nname=Text Editor\nversion=1.0\n';
+        this.files['/Games/icon.bmp'] = '[BINARY]';
     }
 
     saveToDevice() {
