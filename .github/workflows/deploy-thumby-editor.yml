@@ -2,7 +2,7 @@ name: Deploy Thumby Color Editor to GitHub Pages
 
 on:
   push:
-    branches: [ "arena/440c7f2e-github" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: arena/440c7f2e-github
 
       - name: Set up Python for headless emulator testing
         uses: actions/setup-python@v5
@@ -38,5 +36,5 @@ jobs:
           publish_dir: ./gh-pages-build
           publish_branch: gh-pages
           force_orphan: true
-          # Note: Arena environment handles the branch arena/440c7f2e-github
-          # This workflow will push the build to the gh-pages branch of Dragon-Gaming-Platforms
+          # Deploys the Thumby Color Editor 'game' to GitHub Pages
+          # on every push to main (and via workflow_dispatch)
